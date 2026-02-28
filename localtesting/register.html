@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Register Fingerprint</title>
+  </head>
+  <body>
+    <input type="email" id="email" placeholder="Email" />
+    <button onclick="register()">Register with Fingerprint</button>
+
+    <script>
+      async function register() {
+        const email = document.getElementById("email").value;
+
+        const challengeResponse = await fetch("generate_challenge.php");
+        const challengeData = await challengeResponse.json();
+
+        const publicKey = {
+          challenge: Uint8Array.from(atob(challengeData.challenge), (c) =>
+            c.charCodeAt(0)
+          ),
+          rp: { name: "My Website" },
+          user: {
+            id: Uint8Array.from(email, (c) => c.charCodeAt(0)),
+            name: email,
+            displayName: email,
+          },
+          pubKeyCredParams: [
+            { type: "public-key", alg: -7 }, // ES256
+            { type: "public-key", alg: -257 }, // RS256
+          ],
+
+          // pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            userVerification: "required",
+          },
+          timeout: 60000,
+          attestation: "none",
+        };
+
+        const credential = await navigator.credentials.create({ publicKey });
+
+        const data = {
+          email: email,
+          id: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+          publicKey: btoa(JSON.stringify(credential.response)),
+        };
+
+        await fetch("save_credential.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+
+        alert("Registration success");
+      }
+    </script>
+  </body>
+</html>
